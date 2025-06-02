@@ -1,38 +1,42 @@
-"use server";
+'use server';
 
-import bcrypt from "bcrypt";
-import { prisma } from "@/lib/prisma";
-import { setLoginCookie } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import { LoginState } from "@/lib/definitions";
+import bcrypt from 'bcrypt';
+import { prisma } from '@/lib/prisma';
+import { setLoginCookie } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { ErrorState, LoginFormData, User } from '@/lib/definitions';
 
 export async function login(
-  prevState: LoginState,
-  formData: FormData
-): Promise<LoginState> {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+	prevState: ErrorState,
+	formData: LoginFormData
+): Promise<ErrorState> {
+	const email = formData.email;
+	const password = formData.password;
 
-  if (!email || !password) {
-    return { error: "Faltan campos", field: "email" };
-  }
+	if (!email) {
+		return { error: 'Email is required', field: 'email' };
+	}
 
-  const user = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-  });
+	if (!password) {
+		return { error: 'Password is required', field: 'password' };
+	}
 
-  if (!user) {
-    return { error: "Usuario no encontrado", field: "email" };
-  }
+	const user: User | null = await prisma.user.findUnique({
+		where: {
+			email,
+		},
+	});
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+	if (!user) {
+		return { error: 'User not found', field: 'email' };
+	}
 
-  if (!isPasswordValid) {
-    return { error: "Contraseña inválida", field: "password" };
-  }
+	const isPasswordValid = await bcrypt.compare(password, user.password);
 
-  await setLoginCookie(user.id);
-  redirect("/dashboard");
+	if (!isPasswordValid) {
+		return { error: 'Invalid password', field: 'password' };
+	}
+
+	await setLoginCookie(user.id as number);
+	redirect('/dashboard');
 }
